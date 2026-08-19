@@ -8,9 +8,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 
-# ============================================================
-# GENERAR DISPENSACIONES POR BLOQUES
-# ============================================================
 
 def generar_dispensaciones(
     seed,
@@ -28,19 +25,13 @@ def generar_dispensaciones(
 
     inicio_total = time.time()
 
-    # --------------------------------------------------------
-    # Configuración
-    # --------------------------------------------------------
-
     cantidad_total = cantidad
 
     print(f"Cantidad total a generar: {cantidad_total:,}")
     print(f"Tamaño de bloque: {tamano_bloque:,}")
     print(f"Cantidad de encuentros disponibles: {len(df_encuentros):,}")
 
-    # --------------------------------------------------------
-    # Crear carpeta de salida
-    # --------------------------------------------------------
+
 
     carpeta_salida = Path(carpeta_salida)
     carpeta_salida.mkdir(
@@ -58,9 +49,6 @@ def generar_dispensaciones(
         "FAR_DISPENSACION.parquet"
     )
 
-    # --------------------------------------------------------
-    # Eliminar archivos anteriores
-    # --------------------------------------------------------
 
     if archivo_csv.exists():
         archivo_csv.unlink()
@@ -70,9 +58,7 @@ def generar_dispensaciones(
         archivo_parquet.unlink()
         print("Archivo Parquet anterior eliminado.")
 
-    # --------------------------------------------------------
-    # Preparar fechas de encuentros UNA SOLA VEZ
-    # --------------------------------------------------------
+
 
     print("")
     print("Preparando fechas de encuentros...")
@@ -85,9 +71,7 @@ def generar_dispensaciones(
 
     print("Fechas preparadas.")
 
-    # --------------------------------------------------------
-    # Medicamentos
-    # --------------------------------------------------------
+
 
     medicamentos = [
         {
@@ -153,40 +137,20 @@ def generar_dispensaciones(
         "Urgencias"
     ]
 
-    # --------------------------------------------------------
-    # Generador aleatorio
-    # --------------------------------------------------------
-
     rng = np.random.default_rng(seed)
 
-    # --------------------------------------------------------
-    # Preparar Parquet
-    # --------------------------------------------------------
-
     parquet_writer = None
-
-    # --------------------------------------------------------
-    # Variables de control
-    # --------------------------------------------------------
 
     registros_generados = 0
     numero_bloque = 0
 
     try:
 
-        # ====================================================
-        # PROCESAMIENTO POR BLOQUES
-        # ====================================================
-
         while registros_generados < cantidad_total:
 
             numero_bloque += 1
 
             inicio_bloque = time.time()
-
-            # ------------------------------------------------
-            # Determinar tamaño del bloque
-            # ------------------------------------------------
 
             registros_restantes = (
                 cantidad_total -
@@ -216,16 +180,6 @@ def generar_dispensaciones(
                 f"{cantidad_total:,}"
             )
 
-            # ------------------------------------------------
-            # Seleccionar encuentros
-            # ------------------------------------------------
-            #
-            # IMPORTANTE:
-            # No usamos df.sample() 2 millones de veces.
-            #
-            # Seleccionamos todos los encuentros del bloque
-            # de una sola vez.
-            # ------------------------------------------------
 
             indices = rng.integers(
                 0,
@@ -239,9 +193,6 @@ def generar_dispensaciones(
                 .reset_index(drop=True)
             )
 
-            # ------------------------------------------------
-            # Medicamentos
-            # ------------------------------------------------
 
             indices_medicamentos = rng.integers(
                 0,
@@ -264,9 +215,6 @@ def generar_dispensaciones(
                 for i in indices_medicamentos
             ])
 
-            # ------------------------------------------------
-            # Cantidad medicamento
-            # ------------------------------------------------
 
             cantidades = rng.choice(
                 [1, 2, 3, 4, 5],
@@ -280,9 +228,6 @@ def generar_dispensaciones(
                 ]
             )
 
-            # ------------------------------------------------
-            # Variación precio
-            # ------------------------------------------------
 
             variaciones = rng.uniform(
                 0.90,
@@ -295,9 +240,6 @@ def generar_dispensaciones(
                 variaciones
             ).astype(int)
 
-            # ------------------------------------------------
-            # Fechas de dispensación
-            # ------------------------------------------------
 
             dias_despues = rng.integers(
                 0,
@@ -314,18 +256,12 @@ def generar_dispensaciones(
                 )
             )
 
-            # ------------------------------------------------
-            # Tipo de prescripción
-            # ------------------------------------------------
 
             tipos = rng.choice(
                 tipos_prescripcion,
                 size=cantidad_bloque
             )
 
-            # ------------------------------------------------
-            # ID de dispensación
-            # ------------------------------------------------
 
             id_inicio = (
                 registros_generados + 1
@@ -341,9 +277,6 @@ def generar_dispensaciones(
                 id_fin
             )
 
-            # ------------------------------------------------
-            # Crear DataFrame del bloque
-            # ------------------------------------------------
 
             df_bloque = pd.DataFrame({
 
@@ -384,9 +317,6 @@ def generar_dispensaciones(
                     tipos
             })
 
-            # ------------------------------------------------
-            # ESCRIBIR CSV
-            # ------------------------------------------------
 
             if registros_generados == 0:
 
@@ -411,9 +341,6 @@ def generar_dispensaciones(
                     header=False
                 )
 
-            # ------------------------------------------------
-            # ESCRIBIR PARQUET
-            # ------------------------------------------------
 
             tabla_parquet = (
                 pa.Table.from_pandas(
@@ -433,35 +360,21 @@ def generar_dispensaciones(
                 tabla_parquet
             )
 
-            # ------------------------------------------------
-            # Actualizar contador
-            # ------------------------------------------------
-
             registros_generados += (
                 cantidad_bloque
             )
 
-            # ------------------------------------------------
-            # Tiempo del bloque
-            # ------------------------------------------------
 
             tiempo_bloque = (
                 time.time() -
                 inicio_bloque
             )
 
-            # ------------------------------------------------
-            # Porcentaje
-            # ------------------------------------------------
 
             porcentaje = (
                 registros_generados /
                 cantidad_total
             ) * 100
-
-            # ------------------------------------------------
-            # Velocidad
-            # ------------------------------------------------
 
             velocidad = (
                 cantidad_bloque /
@@ -485,25 +398,16 @@ def generar_dispensaciones(
                 f"({porcentaje:.2f}%)"
             )
 
-            # ------------------------------------------------
-            # Liberar DataFrame del bloque
-            # ------------------------------------------------
 
             del df_bloque
             del encuentros
 
     finally:
 
-        # ----------------------------------------------------
-        # Cerrar Parquet
-        # ----------------------------------------------------
 
         if parquet_writer is not None:
             parquet_writer.close()
 
-    # ========================================================
-    # TIEMPO TOTAL
-    # ========================================================
 
     tiempo_total = (
         time.time() -
