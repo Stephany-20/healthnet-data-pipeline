@@ -1,0 +1,109 @@
+{
+    "name": "DF_SILVER_TO_GOLD_FACT_COSTOS_ATENCION",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_FAR_DISPENSACION",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilverfardispensacion"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilverhceencuentros"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOLD_FACT_COSTOS_ATENCION",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkfactcostosatencion"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvfarcostos"
+                },
+                {
+                    "name": "aggfarencuentro"
+                },
+                {
+                    "name": "jncostoshce"
+                },
+                {
+                    "name": "drvfactcostosatencion"
+                },
+                {
+                    "name": "aggfactcostosatencion"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_diapensacion as long,",
+                "          id_encuentros as long,",
+                "          pac_id as integer,",
+                "          id_sede as integer,",
+                "          fec_dispensacion as timestamp,",
+                "          cod_medicamento as string,",
+                "          nom_medicamento as string,",
+                "          cantidad as integer,",
+                "          vr_unitario as decimal(18,2),",
+                "          tip_prescripcion as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilverfardispensacion",
+                "source(output(",
+                "          id_encuentros as long,",
+                "          pac_id as integer,",
+                "          med_id as integer,",
+                "          id_sede as integer,",
+                "          fec_registro as timestamp,",
+                "          fec_inicio_atencion as timestamp,",
+                "          fec_egreso as timestamp,",
+                "          tip_consulta as string,",
+                "          esp_atendida as string,",
+                "          diag_principal_cie10 as string,",
+                "          diag_sec1_cie10 as string,",
+                "          cod_procedimiento as string,",
+                "          vr_facturado as decimal(18,2),",
+                "          estado_factura as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilverhceencuentros",
+                "srcsilverfardispensacion derive(costo_medicamentos = vr_unitario * cantidad) ~> drvfarcostos",
+                "drvfarcostos aggregate(groupBy(id_encuentros),",
+                "     costo_medicamentos_total = sum(costo_medicamentos)) ~> aggfarencuentro",
+                "aggfarencuentro, srcsilverhceencuentros join(aggfarencuentro@id_encuentros == srcsilverhceencuentros@id_encuentros,",
+                "     joinType:'left',",
+                "     matchType:'exact',",
+                "     ignoreSpaces: false,",
+                "     broadcast: 'auto')~> jncostoshce",
+                "jncostoshce derive(costo_total = vr_facturado + costo_medicamentos_total) ~> drvfactcostosatencion",
+                "drvfactcostosatencion aggregate(groupBy(tip_consulta,",
+                "          diag_principal_cie10),",
+                "     costo_total = sum(costo_total),",
+                "          numero_encuentros = count(srcsilverhceencuentros@id_encuentros)) ~> aggfactcostosatencion",
+                "aggfactcostosatencion sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkfactcostosatencion"
+            ]
+        }
+    }
+}

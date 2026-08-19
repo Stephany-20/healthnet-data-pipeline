@@ -1,0 +1,51 @@
+{
+    "name": "DS_SQL_MED_PLANTA",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "med_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "esp_principal",
+                "type": "varchar"
+            },
+            {
+                "name": "esp_secundaria",
+                "type": "varchar"
+            },
+            {
+                "name": "id_sede",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "fec_ingreso",
+                "type": "date"
+            },
+            {
+                "name": "tip_contrato",
+                "type": "varchar"
+            },
+            {
+                "name": "jornada",
+                "type": "varchar"
+            },
+            {
+                "name": "estado_activo",
+                "type": "varchar"
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "MED_PLANTA"
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_RED_SEDES",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_RED_SEDES",
+                        "type": "DatasetReference"
+                    },
+                    "name": "scrredsedes"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_RED_SEDES",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkredsedes"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvredsedes"
+                },
+                {
+                    "name": "sltredsedes"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_sede as integer,",
+                "          nom_sede as string,",
+                "          tip_sede as string,",
+                "          id_ciudad as integer,",
+                "          id_pais as integer,",
+                "          cap_camas_gen as integer,",
+                "          cap_camas_uci as integer,",
+                "          cap_camas_cirugia as integer,",
+                "          cap_camas_urg as integer,",
+                "          nivel_complejidad as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> scrredsedes",
+                "scrredsedes derive(nivel_complejidad_limpio = upper(trim(nivel_complejidad))) ~> drvredsedes",
+                "drvredsedes select(mapColumn(",
+                "          id_sede,",
+                "          nom_sede,",
+                "          tip_sede,",
+                "          id_ciudad,",
+                "          id_pais,",
+                "          cap_camas_gen,",
+                "          cap_camas_uci,",
+                "          cap_camas_cirugia,",
+                "          cap_camas_urg,",
+                "          nivel_complejidad = nivel_complejidad_limpio",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sltredsedes",
+                "sltredsedes sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkredsedes"
+            ]
+        }
+    }
+}

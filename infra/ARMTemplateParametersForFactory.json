@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "value": "adf-healthnet-01"
+        },
+        "LS_AzureSQL_HealthNet_password": {
+            "value": ""
+        },
+        "LS_ADLS_HealthNet_accountKey": {
+            "value": ""
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_server": {
+            "value": "sql-healthnet-01.database.windows.net"
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_database": {
+            "value": "healthnetdb"
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_userName": {
+            "value": "CloudSA08833708"
+        },
+        "LS_ADLS_HealthNet_properties_typeProperties_url": {
+            "value": "https://sthealthnetdata01.dfs.core.windows.net/"
+        }
+    }
+}

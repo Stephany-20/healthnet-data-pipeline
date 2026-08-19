@@ -1,0 +1,64 @@
+{
+    "name": "DS_SQL_RED_SEDES",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "id_sede",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "nom_sede",
+                "type": "varchar"
+            },
+            {
+                "name": "tip_sede",
+                "type": "varchar"
+            },
+            {
+                "name": "id_ciudad",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "id_pais",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "cap_camas_gen",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "cap_camas_uci",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "cap_camas_cirugia",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "cap_camas_urg",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "nivel_complejidad",
+                "type": "varchar"
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "RED_SEDES"
+        }
+    }
+}

@@ -1,0 +1,53 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_FAR_DISPENSACION",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_FAR_DISPENSACION",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcfardispensacion"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_FAR_DISPENSACION",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkfardispensacion"
+                }
+            ],
+            "transformations": [],
+            "scriptLines": [
+                "source(output(",
+                "          id_diapensacion as long,",
+                "          id_encuentros as long,",
+                "          pac_id as integer,",
+                "          id_sede as integer,",
+                "          fec_dispensacion as timestamp,",
+                "          cod_medicamento as string,",
+                "          nom_medicamento as string,",
+                "          cantidad as integer,",
+                "          vr_unitario as decimal(18,2),",
+                "          tip_prescripcion as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcfardispensacion",
+                "srcfardispensacion sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkfardispensacion"
+            ]
+        }
+    }
+}

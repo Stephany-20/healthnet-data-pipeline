@@ -1,0 +1,143 @@
+{
+    "name": "DF_SILVER_TO_GOLD_FACT_CONSULTAS",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilverhceencuentros"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOLD_DIM_MEDICOS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcgolddimmedicos"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOL_FACT_CONSULTAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkfactconsultas"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvfactconsultas"
+                },
+                {
+                    "name": "jnconsultasmedicos"
+                },
+                {
+                    "name": "sltfactconsultas"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_encuentros as long,",
+                "          pac_id as integer,",
+                "          med_id as integer,",
+                "          id_sede as integer,",
+                "          fec_registro as timestamp,",
+                "          fec_inicio_atencion as timestamp,",
+                "          fec_egreso as timestamp,",
+                "          tip_consulta as string,",
+                "          esp_atendida as string,",
+                "          diag_principal_cie10 as string,",
+                "          diag_sec1_cie10 as string,",
+                "          cod_procedimiento as string,",
+                "          vr_facturado as decimal(18,2),",
+                "          estado_factura as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilverhceencuentros",
+                "source(output(",
+                "          med_id as integer,",
+                "          esp_principal as string,",
+                "          esp_secundaria as string,",
+                "          id_sede as integer,",
+                "          fec_ingreso as date,",
+                "          tip_contrato as string,",
+                "          jornada as string,",
+                "          estado_activo as string,",
+                "          nom_sede as string,",
+                "          tip_sede as string,",
+                "          id_ciudad as integer,",
+                "          id_pais as integer,",
+                "          cap_camas_gen as integer,",
+                "          cap_camas_uci as integer,",
+                "          cap_camas_cirugia as integer,",
+                "          cap_camas_urg as integer,",
+                "          nivel_complejidad as string,",
+                "          anos_experiencia as integer",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcgolddimmedicos",
+                "srcsilverhceencuentros derive(tiempo_estadia_horas = (toLong(fec_egreso) - toLong(fec_registro)) / 3600000,",
+                "          diag_principal_cie10_3 = left(upper(trim(diag_principal_cie10)), 3)) ~> drvfactconsultas",
+                "drvfactconsultas, srcgolddimmedicos join(srcsilverhceencuentros@med_id == srcgolddimmedicos@med_id,",
+                "     joinType:'left',",
+                "     matchType:'exact',",
+                "     ignoreSpaces: false,",
+                "     broadcast: 'auto')~> jnconsultasmedicos",
+                "jnconsultasmedicos select(mapColumn(",
+                "          id_encuentros,",
+                "          pac_id,",
+                "          med_id = srcsilverhceencuentros@med_id,",
+                "          id_sede = srcsilverhceencuentros@id_sede,",
+                "          fec_registro,",
+                "          fec_inicio_atencion,",
+                "          fec_egreso,",
+                "          tip_consulta,",
+                "          esp_atendida,",
+                "          diag_principal_cie10,",
+                "          diag_sec1_cie10,",
+                "          cod_procedimiento,",
+                "          vr_facturado,",
+                "          estado_factura,",
+                "          tiempo_estadia_horas,",
+                "          diag_principal_cie10_3,",
+                "          med_id = srcgolddimmedicos@med_id,",
+                "          esp_principal,",
+                "          esp_secundaria,",
+                "          id_sede = srcgolddimmedicos@id_sede,",
+                "          fec_ingreso,",
+                "          tip_contrato,",
+                "          jornada,",
+                "          estado_activo,",
+                "          nom_sede,",
+                "          tip_sede,",
+                "          id_ciudad,",
+                "          id_pais,",
+                "          cap_camas_gen,",
+                "          cap_camas_uci,",
+                "          cap_camas_cirugia,",
+                "          cap_camas_urg,",
+                "          nivel_complejidad,",
+                "          anos_experiencia",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sltfactconsultas",
+                "sltfactconsultas sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkfactconsultas"
+            ]
+        }
+    }
+}

@@ -1,0 +1,55 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_AGE_CITAS",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_AGE_CITAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcagecitas"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_AGE_CITAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkagecitas"
+                }
+            ],
+            "transformations": [],
+            "scriptLines": [
+                "source(output(",
+                "          id_cita as long,",
+                "          pac_id as integer,",
+                "          med_id as integer,",
+                "          id_sede as integer,",
+                "          fec_agendamiento as date,",
+                "          fec_cita_programada as date,",
+                "          hra_cita_programada as timestamp,",
+                "          hra_llegada_paciente as timestamp,",
+                "          hra_inicio_atencion as timestamp,",
+                "          esp_solicitada as string,",
+                "          tip_cita as string,",
+                "          estado_cita as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcagecitas",
+                "srcagecitas sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkagecitas"
+            ]
+        }
+    }
+}

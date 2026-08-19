@@ -1,0 +1,94 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_PAC_REGISTRO",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_PAC_REGISTRO",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcpacregistro"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_PAC_REGISTRO",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinksilverpacregistro"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvpacregistro"
+                },
+                {
+                    "name": "fltpacregistro"
+                },
+                {
+                    "name": "sltpacregistro"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          pac_id as integer,",
+                "          tip_doc as string,",
+                "          num_doc_hash as string,",
+                "          fec_nac as date,",
+                "          genero as string,",
+                "          id_ciudad_res as integer,",
+                "          tip_aseguradora as string,",
+                "          id_eps as double,",
+                "          estrato_socioec as integer,",
+                "          fec_primer_atencion as date,",
+                "          activo as boolean",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcpacregistro",
+                "srcpacregistro derive(tip_aseguradora_limpio = upper(trim(tip_aseguradora))) ~> drvpacregistro",
+                "sltpacregistro filter(!isNull(pac_id)) ~> fltpacregistro",
+                "drvpacregistro select(mapColumn(",
+                "          pac_id,",
+                "          tip_doc,",
+                "          num_doc_hash,",
+                "          fec_nac,",
+                "          genero,",
+                "          id_ciudad_res,",
+                "          tip_aseguradora = tip_aseguradora_limpio,",
+                "          id_eps,",
+                "          estrato_socioec,",
+                "          fec_primer_atencion,",
+                "          activo",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sltpacregistro",
+                "fltpacregistro sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     mapColumn(",
+                "          pac_id,",
+                "          tip_doc,",
+                "          num_doc_hash,",
+                "          fec_nac,",
+                "          genero,",
+                "          id_ciudad_res,",
+                "          tip_aseguradora,",
+                "          id_eps,",
+                "          estrato_socioec,",
+                "          fec_primer_atencion,",
+                "          activo",
+                "     )) ~> sinksilverpacregistro"
+            ]
+        }
+    }
+}

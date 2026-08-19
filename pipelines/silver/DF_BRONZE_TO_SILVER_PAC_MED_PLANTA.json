@@ -1,0 +1,71 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_MED_PLANTA",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_MED_PLANTA",
+                        "type": "DatasetReference"
+                    },
+                    "name": "scrmedplanta"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_MED_PLANTA",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkmedplanta"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvmedplanta"
+                },
+                {
+                    "name": "sltmedplanta"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          med_id as integer,",
+                "          esp_principal as string,",
+                "          esp_secundaria as string,",
+                "          id_sede as integer,",
+                "          fec_ingreso as date,",
+                "          tip_contrato as string,",
+                "          jornada as string,",
+                "          estado_activo as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> scrmedplanta",
+                "scrmedplanta derive(jornada_limpio = upper(trim(jornada))) ~> drvmedplanta",
+                "drvmedplanta select(mapColumn(",
+                "          med_id,",
+                "          esp_principal,",
+                "          esp_secundaria,",
+                "          id_sede,",
+                "          fec_ingreso,",
+                "          tip_contrato,",
+                "          jornada = jornada_limpio,",
+                "          estado_activo",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sltmedplanta",
+                "sltmedplanta sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkmedplanta"
+            ]
+        }
+    }
+}

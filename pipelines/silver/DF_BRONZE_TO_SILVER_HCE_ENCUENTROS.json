@@ -1,0 +1,125 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_HCE_ENCUENTROS",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_HCE_ENCUENTROS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srchceencuentros"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkhceencuentros"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DS_ERRORS_HCE_ENCUENTROS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkerroreshceencuentros"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "qualityhceencuentros"
+                },
+                {
+                    "name": "windowhcencuentros"
+                },
+                {
+                    "name": "splithceencuentros"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_encuentros as long,",
+                "          pac_id as integer,",
+                "          med_id as integer,",
+                "          id_sede as integer,",
+                "          fec_registro as timestamp,",
+                "          fec_inicio_atencion as timestamp,",
+                "          fec_egreso as timestamp,",
+                "          tip_consulta as string,",
+                "          esp_atendida as string,",
+                "          diag_principal_cie10 as string,",
+                "          diag_sec1_cie10 as string,",
+                "          cod_procedimiento as string,",
+                "          vr_facturado as decimal(18,2),",
+                "          estado_factura as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srchceencuentros",
+                "srchceencuentros derive(flag_fecha_fuera_rango = year(fec_registro) < 2025,",
+                "          flag_fecha_inconsistente = fec_inicio_atencion < fec_registro) ~> qualityhceencuentros",
+                "qualityhceencuentros window(over(id_encuentros),",
+                "     asc(id_encuentros, true),",
+                "     rn_encuentro = rowNumber()) ~> windowhcencuentros",
+                "windowhcencuentros split(rn_encuentro == 1 && flag_fecha_fuera_rango == false() && flag_fecha_inconsistente == false(),",
+                "     rn_encuentro > 1 || flag_fecha_fuera_rango == true() || flag_fecha_inconsistente == true(),",
+                "     disjoint: false) ~> splithceencuentros@(validos, errores)",
+                "splithceencuentros@validos sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     mapColumn(",
+                "          id_encuentros,",
+                "          pac_id,",
+                "          med_id,",
+                "          id_sede,",
+                "          fec_registro,",
+                "          fec_inicio_atencion,",
+                "          fec_egreso,",
+                "          tip_consulta,",
+                "          esp_atendida,",
+                "          diag_principal_cie10,",
+                "          diag_sec1_cie10,",
+                "          cod_procedimiento,",
+                "          vr_facturado,",
+                "          estado_factura",
+                "     )) ~> sinkhceencuentros",
+                "splithceencuentros@errores sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     mapColumn(",
+                "          id_encuentros,",
+                "          pac_id,",
+                "          med_id,",
+                "          id_sede,",
+                "          fec_registro,",
+                "          fec_inicio_atencion,",
+                "          fec_egreso,",
+                "          tip_consulta,",
+                "          esp_atendida,",
+                "          diag_principal_cie10,",
+                "          diag_sec1_cie10,",
+                "          cod_procedimiento,",
+                "          vr_facturado,",
+                "          estado_factura,",
+                "          flag_fecha_fuera_rango,",
+                "          flag_fecha_inconsistente,",
+                "          rn_encuentro",
+                "     )) ~> sinkerroreshceencuentros"
+            ]
+        }
+    }
+}

@@ -1,0 +1,72 @@
+{
+    "name": "DS_SQL_AGE_CITAS",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "id_cita",
+                "type": "bigint",
+                "precision": 19
+            },
+            {
+                "name": "pac_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "med_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "id_sede",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "fec_agendamiento",
+                "type": "date"
+            },
+            {
+                "name": "fec_cita_programada",
+                "type": "date"
+            },
+            {
+                "name": "hra_cita_programada",
+                "type": "time",
+                "scale": 7
+            },
+            {
+                "name": "hra_llegada_paciente",
+                "type": "time",
+                "scale": 7
+            },
+            {
+                "name": "hra_inicio_atencion",
+                "type": "time",
+                "scale": 7
+            },
+            {
+                "name": "esp_solicitada",
+                "type": "varchar"
+            },
+            {
+                "name": "tip_cita",
+                "type": "varchar"
+            },
+            {
+                "name": "estado_cita",
+                "type": "varchar"
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "AGE_CITAS"
+        }
+    }
+}

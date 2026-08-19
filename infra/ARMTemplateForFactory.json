@@ -1,0 +1,3243 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name",
+            "defaultValue": "adf-healthnet-01"
+        },
+        "LS_AzureSQL_HealthNet_password": {
+            "type": "secureString",
+            "metadata": "Secure string for 'password' of 'LS_AzureSQL_HealthNet'"
+        },
+        "LS_ADLS_HealthNet_accountKey": {
+            "type": "secureString",
+            "metadata": "Secure string for 'accountKey' of 'LS_ADLS_HealthNet'"
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_server": {
+            "type": "string",
+            "defaultValue": "sql-healthnet-01.database.windows.net"
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_database": {
+            "type": "string",
+            "defaultValue": "healthnetdb"
+        },
+        "LS_AzureSQL_HealthNet_properties_typeProperties_userName": {
+            "type": "string",
+            "defaultValue": "CloudSA08833708"
+        },
+        "LS_ADLS_HealthNet_properties_typeProperties_url": {
+            "type": "string",
+            "defaultValue": "https://sthealthnetdata01.dfs.core.windows.net/"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/LS_AzureSQL_HealthNet')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "type": "AzureSqlDatabase",
+                "typeProperties": {
+                    "server": "[parameters('LS_AzureSQL_HealthNet_properties_typeProperties_server')]",
+                    "database": "[parameters('LS_AzureSQL_HealthNet_properties_typeProperties_database')]",
+                    "encrypt": "mandatory",
+                    "trustServerCertificate": false,
+                    "authenticationType": "SQL",
+                    "userName": "[parameters('LS_AzureSQL_HealthNet_properties_typeProperties_userName')]",
+                    "password": {
+                        "type": "SecureString",
+                        "value": "[parameters('LS_AzureSQL_HealthNet_password')]"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/LS_ADLS_HealthNet')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "type": "AzureBlobFS",
+                "typeProperties": {
+                    "url": "[parameters('LS_ADLS_HealthNet_properties_typeProperties_url')]",
+                    "accountKey": {
+                        "type": "SecureString",
+                        "value": "[parameters('LS_ADLS_HealthNet_accountKey')]"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_PAC_REGISTRO')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "pac_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "tip_doc",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "num_doc_hash",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "fec_nac",
+                        "type": "date"
+                    },
+                    {
+                        "name": "genero",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "id_ciudad_res",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "tip_aseguradora",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "id_eps",
+                        "type": "float",
+                        "precision": 15
+                    },
+                    {
+                        "name": "estrato_socioec",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "fec_primer_atencion",
+                        "type": "date"
+                    },
+                    {
+                        "name": "activo",
+                        "type": "bit"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "PAC_REGISTRO"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_PAC_REGISTRO')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/PAC_REGISTRO",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_PAC_REGISTRO')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar PAC_REGISTRO a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_PAC_REGISTRO",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_PAC_REGISTRO",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_PAC_REGISTRO",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar PAC_REGISTRO a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_PAC_REGISTRO",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srcpacregistro": {},
+                                    "sinksilverpacregistro": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_PAC_REGISTRO')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_PAC_REGISTRO')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_PAC_REGISTRO')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_RED_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "nom_sede",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "tip_sede",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "id_ciudad",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "id_pais",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "cap_camas_gen",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "cap_camas_uci",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "cap_camas_cirugia",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "cap_camas_urg",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "nivel_complejidad",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "RED_SEDES"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_RED_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/RED_SEDES",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_RED_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar RED_SEDES a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_RED_SEDES",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_RED_SEDES",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_RED_SEDES",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar RED_SEDES a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_RED_SEDES",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "scrredsedes": {},
+                                    "sinkredsedes": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_RED_SEDES')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_RED_SEDES')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_RED_SEDES')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_MED_PLANTA')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "med_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "esp_principal",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "esp_secundaria",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "fec_ingreso",
+                        "type": "date"
+                    },
+                    {
+                        "name": "tip_contrato",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "jornada",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "estado_activo",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "MED_PLANTA"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_MED_PLANTA')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/MED_PLANTA",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_MED_PLANTA')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar MED_PLANTA a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_MED_PLANTA",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_MED_PLANTA",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_MED_PLANTA",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar MED_PLANTA a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_MED_PLANTA",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "scrmedplanta": {},
+                                    "sinkmedplanta": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    },
+                    {
+                        "name": "DF_TO_GOLD_DIM_MEDICOS",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "DF_TO_SILVER_MED_PLANTA",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_SILVER_TO_GOLD_DIM_MEDICOS",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srcsilvermedplanta": {},
+                                    "srcsilverredsedes": {},
+                                    "sinkdimmedicos": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_MED_PLANTA')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_MED_PLANTA')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_MED_PLANTA')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_SILVER_TO_GOLD_DIM_MEDICOS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_GCM_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "id_registro_cama",
+                        "type": "bigint",
+                        "precision": 19
+                    },
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "tip_unidad",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "fec_hora_registro",
+                        "type": "datetime2",
+                        "scale": 7
+                    },
+                    {
+                        "name": "num_camas_ocupadas",
+                        "type": "int",
+                        "precision": 10
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "GCM_CAMAS"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_GCM_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/GCM_CAMAS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_GCM_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar GCM_CAMAS a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_GCM_CAMAS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_GCM_CAMAS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_GCM_CAMAS",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar GCM_CAMAS a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_GCM_CAMAS",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srcgcmcamas": {},
+                                    "sink1": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_GCM_CAMAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_GCM_CAMAS')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_GCM_CAMAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "id_encuentros",
+                        "type": "bigint",
+                        "precision": 19
+                    },
+                    {
+                        "name": "pac_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "med_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "fec_registro",
+                        "type": "datetime2",
+                        "scale": 7
+                    },
+                    {
+                        "name": "fec_inicio_atencion",
+                        "type": "datetime2",
+                        "scale": 7
+                    },
+                    {
+                        "name": "fec_egreso",
+                        "type": "datetime2",
+                        "scale": 7
+                    },
+                    {
+                        "name": "tip_consulta",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "esp_atendida",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "diag_principal_cie10",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "diag_sec1_cie10",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "cod_procedimiento",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "vr_facturado",
+                        "type": "decimal",
+                        "precision": 18,
+                        "scale": 2
+                    },
+                    {
+                        "name": "estado_factura",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "HCE_ENCUENTROS"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/HCE_ENCUENTROS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar HCE_ENCUENTRSO a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_HCE_ENCUENTROS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_HCE_ENCUENTROS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_HCE_ENCUENTROS",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar HCE_ENCUENTRSO a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_HCE_ENCUENTROS",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srchceencuentros": {},
+                                    "sinkhceencuentros": {},
+                                    "sinkerroreshceencuentros": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_HCE_ENCUENTROS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "id_cita",
+                        "type": "bigint",
+                        "precision": 19
+                    },
+                    {
+                        "name": "pac_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "med_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "fec_agendamiento",
+                        "type": "date"
+                    },
+                    {
+                        "name": "fec_cita_programada",
+                        "type": "date"
+                    },
+                    {
+                        "name": "hra_cita_programada",
+                        "type": "time",
+                        "scale": 7
+                    },
+                    {
+                        "name": "hra_llegada_paciente",
+                        "type": "time",
+                        "scale": 7
+                    },
+                    {
+                        "name": "hra_inicio_atencion",
+                        "type": "time",
+                        "scale": 7
+                    },
+                    {
+                        "name": "esp_solicitada",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "tip_cita",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "estado_cita",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "AGE_CITAS"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/AGE_CITAS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar AGE_CITAS a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_AGE_CITAS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_AGE_CITAS",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_AGE_CITAS",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar AGE_CITAS a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_AGE_CITAS",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srcagecitas": {},
+                                    "sinkagecitas": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_AGE_CITAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_AGE_CITAS')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_AGE_CITAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_PAC_REGISTRO')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_PAC_REGISTRO",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcpacregistro"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_PAC_REGISTRO",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinksilverpacregistro"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvpacregistro"
+                        },
+                        {
+                            "name": "fltpacregistro"
+                        },
+                        {
+                            "name": "sltpacregistro"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          pac_id as integer,",
+                        "          tip_doc as string,",
+                        "          num_doc_hash as string,",
+                        "          fec_nac as date,",
+                        "          genero as string,",
+                        "          id_ciudad_res as integer,",
+                        "          tip_aseguradora as string,",
+                        "          id_eps as double,",
+                        "          estrato_socioec as integer,",
+                        "          fec_primer_atencion as date,",
+                        "          activo as boolean",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcpacregistro",
+                        "srcpacregistro derive(tip_aseguradora_limpio = upper(trim(tip_aseguradora))) ~> drvpacregistro",
+                        "sltpacregistro filter(!isNull(pac_id)) ~> fltpacregistro",
+                        "drvpacregistro select(mapColumn(",
+                        "          pac_id,",
+                        "          tip_doc,",
+                        "          num_doc_hash,",
+                        "          fec_nac,",
+                        "          genero,",
+                        "          id_ciudad_res,",
+                        "          tip_aseguradora = tip_aseguradora_limpio,",
+                        "          id_eps,",
+                        "          estrato_socioec,",
+                        "          fec_primer_atencion,",
+                        "          activo",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltpacregistro",
+                        "fltpacregistro sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     mapColumn(",
+                        "          pac_id,",
+                        "          tip_doc,",
+                        "          num_doc_hash,",
+                        "          fec_nac,",
+                        "          genero,",
+                        "          id_ciudad_res,",
+                        "          tip_aseguradora,",
+                        "          id_eps,",
+                        "          estrato_socioec,",
+                        "          fec_primer_atencion,",
+                        "          activo",
+                        "     )) ~> sinksilverpacregistro"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_PAC_REGISTRO')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_PAC_REGISTRO')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_PAC_REGISTRO')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/PAC_REGISTRO",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_FAR_DISPENSACION')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "AzureSqlTable",
+                "schema": [
+                    {
+                        "name": "id_diapensacion",
+                        "type": "bigint",
+                        "precision": 19
+                    },
+                    {
+                        "name": "id_encuentros",
+                        "type": "bigint",
+                        "precision": 19
+                    },
+                    {
+                        "name": "pac_id",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "id_sede",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "fec_dispensacion",
+                        "type": "datetime2",
+                        "scale": 7
+                    },
+                    {
+                        "name": "cod_medicamento",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "nom_medicamento",
+                        "type": "varchar"
+                    },
+                    {
+                        "name": "cantidad",
+                        "type": "int",
+                        "precision": 10
+                    },
+                    {
+                        "name": "vr_unitario",
+                        "type": "decimal",
+                        "precision": 18,
+                        "scale": 2
+                    },
+                    {
+                        "name": "tip_prescripcion",
+                        "type": "varchar"
+                    }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "FAR_DISPENSACION"
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_BRONZE_FAR_DISPENSACION')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "bronze/FAR_DISPENSACION",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/PL_SQL_TO_BRONZE_FAR_DISPENSACION')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Copiar FAR_DISPENSACION a Bronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "queryTimeout": "02:00:00",
+                                "partitionOption": "None"
+                            },
+                            "sink": {
+                                "type": "ParquetSink",
+                                "storeSettings": {
+                                    "type": "AzureBlobFSWriteSettings"
+                                },
+                                "formatSettings": {
+                                    "type": "ParquetWriteSettings"
+                                }
+                            },
+                            "enableStaging": false,
+                            "translator": {
+                                "type": "TabularTranslator",
+                                "typeConversion": true,
+                                "typeConversionSettings": {
+                                    "allowDataTruncation": true,
+                                    "treatBooleanAsNumber": false
+                                }
+                            }
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_SQL_FAR_DISPENSACION",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_BRONZE_FAR_DISPENSACION",
+                                "type": "DatasetReference",
+                                "parameters": {}
+                            }
+                        ]
+                    },
+                    {
+                        "name": "DF_TO_SILVER_FAR_DISPENSACION",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [
+                            {
+                                "activity": "Copiar FAR_DISPENSACION a Bronze",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "DF_BRONZE_TO_SILVER_FAR_DISPENSACION",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "srcfardispensacion": {},
+                                    "sinkfardispensacion": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SQL_FAR_DISPENSACION')]",
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_FAR_DISPENSACION')]",
+                "[concat(variables('factoryId'), '/dataflows/DF_BRONZE_TO_SILVER_FAR_DISPENSACION')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_RED_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_RED_SEDES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "scrredsedes"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_RED_SEDES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkredsedes"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvredsedes"
+                        },
+                        {
+                            "name": "sltredsedes"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_sede as integer,",
+                        "          nom_sede as string,",
+                        "          tip_sede as string,",
+                        "          id_ciudad as integer,",
+                        "          id_pais as integer,",
+                        "          cap_camas_gen as integer,",
+                        "          cap_camas_uci as integer,",
+                        "          cap_camas_cirugia as integer,",
+                        "          cap_camas_urg as integer,",
+                        "          nivel_complejidad as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> scrredsedes",
+                        "scrredsedes derive(nivel_complejidad_limpio = upper(trim(nivel_complejidad))) ~> drvredsedes",
+                        "drvredsedes select(mapColumn(",
+                        "          id_sede,",
+                        "          nom_sede,",
+                        "          tip_sede,",
+                        "          id_ciudad,",
+                        "          id_pais,",
+                        "          cap_camas_gen,",
+                        "          cap_camas_uci,",
+                        "          cap_camas_cirugia,",
+                        "          cap_camas_urg,",
+                        "          nivel_complejidad = nivel_complejidad_limpio",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltredsedes",
+                        "sltredsedes sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkredsedes"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_RED_SEDES')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_RED_SEDES')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_MED_PLANTA')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_MED_PLANTA",
+                                "type": "DatasetReference"
+                            },
+                            "name": "scrmedplanta"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_MED_PLANTA",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkmedplanta"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvmedplanta"
+                        },
+                        {
+                            "name": "sltmedplanta"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          med_id as integer,",
+                        "          esp_principal as string,",
+                        "          esp_secundaria as string,",
+                        "          id_sede as integer,",
+                        "          fec_ingreso as date,",
+                        "          tip_contrato as string,",
+                        "          jornada as string,",
+                        "          estado_activo as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> scrmedplanta",
+                        "scrmedplanta derive(jornada_limpio = upper(trim(jornada))) ~> drvmedplanta",
+                        "drvmedplanta select(mapColumn(",
+                        "          med_id,",
+                        "          esp_principal,",
+                        "          esp_secundaria,",
+                        "          id_sede,",
+                        "          fec_ingreso,",
+                        "          tip_contrato,",
+                        "          jornada = jornada_limpio,",
+                        "          estado_activo",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltmedplanta",
+                        "sltmedplanta sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkmedplanta"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_MED_PLANTA')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_MED_PLANTA')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_GCM_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_GCM_CAMAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcgcmcamas"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_GCM_CAMAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sink1"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvgcmcamas"
+                        },
+                        {
+                            "name": "select1"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_registro_cama as long,",
+                        "          id_sede as integer,",
+                        "          tip_unidad as string,",
+                        "          fec_hora_registro as timestamp,",
+                        "          num_camas_ocupadas as integer,",
+                        "          num_camas_disp as integer",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcgcmcamas",
+                        "srcgcmcamas derive(tip_unidad_limpio = upper(trim(tip_unidad))) ~> drvgcmcamas",
+                        "drvgcmcamas select(mapColumn(",
+                        "          id_registro_cama,",
+                        "          id_sede,",
+                        "          fec_hora_registro,",
+                        "          num_camas_ocupadas,",
+                        "          num_camas_disp,",
+                        "          tip_unidad = tip_unidad_limpio",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> select1",
+                        "select1 sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sink1"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_GCM_CAMAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_GCM_CAMAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_AGE_CITAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcagecitas"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_AGE_CITAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkagecitas"
+                        }
+                    ],
+                    "transformations": [],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_cita as long,",
+                        "          pac_id as integer,",
+                        "          med_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_agendamiento as date,",
+                        "          fec_cita_programada as date,",
+                        "          hra_cita_programada as timestamp,",
+                        "          hra_llegada_paciente as timestamp,",
+                        "          hra_inicio_atencion as timestamp,",
+                        "          esp_solicitada as string,",
+                        "          tip_cita as string,",
+                        "          estado_cita as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcagecitas",
+                        "srcagecitas sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkagecitas"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_AGE_CITAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_AGE_CITAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_FAR_DISPENSACION')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_FAR_DISPENSACION",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcfardispensacion"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_FAR_DISPENSACION",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkfardispensacion"
+                        }
+                    ],
+                    "transformations": [],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_diapensacion as long,",
+                        "          id_encuentros as long,",
+                        "          pac_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_dispensacion as timestamp,",
+                        "          cod_medicamento as string,",
+                        "          nom_medicamento as string,",
+                        "          cantidad as integer,",
+                        "          vr_unitario as decimal(18,2),",
+                        "          tip_prescripcion as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcfardispensacion",
+                        "srcfardispensacion sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkfardispensacion"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_FAR_DISPENSACION')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_FAR_DISPENSACION')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_BRONZE_TO_SILVER_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_BRONZE_HCE_ENCUENTROS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srchceencuentros"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkhceencuentros"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "DS_ERRORS_HCE_ENCUENTROS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkerroreshceencuentros"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "qualityhceencuentros"
+                        },
+                        {
+                            "name": "windowhcencuentros"
+                        },
+                        {
+                            "name": "splithceencuentros"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_encuentros as long,",
+                        "          pac_id as integer,",
+                        "          med_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_registro as timestamp,",
+                        "          fec_inicio_atencion as timestamp,",
+                        "          fec_egreso as timestamp,",
+                        "          tip_consulta as string,",
+                        "          esp_atendida as string,",
+                        "          diag_principal_cie10 as string,",
+                        "          diag_sec1_cie10 as string,",
+                        "          cod_procedimiento as string,",
+                        "          vr_facturado as decimal(18,2),",
+                        "          estado_factura as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srchceencuentros",
+                        "srchceencuentros derive(flag_fecha_fuera_rango = year(fec_registro) < 2025,",
+                        "          flag_fecha_inconsistente = fec_inicio_atencion < fec_registro) ~> qualityhceencuentros",
+                        "qualityhceencuentros window(over(id_encuentros),",
+                        "     asc(id_encuentros, true),",
+                        "     rn_encuentro = rowNumber()) ~> windowhcencuentros",
+                        "windowhcencuentros split(rn_encuentro == 1 && flag_fecha_fuera_rango == false() && flag_fecha_inconsistente == false(),",
+                        "     rn_encuentro > 1 || flag_fecha_fuera_rango == true() || flag_fecha_inconsistente == true(),",
+                        "     disjoint: false) ~> splithceencuentros@(validos, errores)",
+                        "splithceencuentros@validos sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     mapColumn(",
+                        "          id_encuentros,",
+                        "          pac_id,",
+                        "          med_id,",
+                        "          id_sede,",
+                        "          fec_registro,",
+                        "          fec_inicio_atencion,",
+                        "          fec_egreso,",
+                        "          tip_consulta,",
+                        "          esp_atendida,",
+                        "          diag_principal_cie10,",
+                        "          diag_sec1_cie10,",
+                        "          cod_procedimiento,",
+                        "          vr_facturado,",
+                        "          estado_factura",
+                        "     )) ~> sinkhceencuentros",
+                        "splithceencuentros@errores sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     mapColumn(",
+                        "          id_encuentros,",
+                        "          pac_id,",
+                        "          med_id,",
+                        "          id_sede,",
+                        "          fec_registro,",
+                        "          fec_inicio_atencion,",
+                        "          fec_egreso,",
+                        "          tip_consulta,",
+                        "          esp_atendida,",
+                        "          diag_principal_cie10,",
+                        "          diag_sec1_cie10,",
+                        "          cod_procedimiento,",
+                        "          vr_facturado,",
+                        "          estado_factura,",
+                        "          flag_fecha_fuera_rango,",
+                        "          flag_fecha_inconsistente,",
+                        "          rn_encuentro",
+                        "     )) ~> sinkerroreshceencuentros"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_BRONZE_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_ERRORS_HCE_ENCUENTROS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/HCE_ENCUENTROS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_ERRORS_HCE_ENCUENTROS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Errores",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/AGE_CITAS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_RED_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/RED_SEDES",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_MED_PLANTA')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/MED_PLANTA",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_GCM_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/GCM_CAMAS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_SILVER_FAR_DISPENSACION')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Silver/FAR_DISPENSACION",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_DIM_PACIENTES')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_PAC_REGISTRO",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverpacregistro"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOLD_DIM_PACIENTES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkdimpacientes"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvdimpacientes"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          pac_id as integer,",
+                        "          tip_doc as string,",
+                        "          num_doc_hash as string,",
+                        "          fec_nac as date,",
+                        "          genero as string,",
+                        "          id_ciudad_res as integer,",
+                        "          tip_aseguradora as string,",
+                        "          id_eps as double,",
+                        "          estrato_socioec as integer,",
+                        "          fec_primer_atencion as date,",
+                        "          activo as boolean",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverpacregistro",
+                        "srcsilverpacregistro derive(grupo_edad = year(toDate('2026-08-17'))- year(fec_nac)) ~> drvdimpacientes",
+                        "drvdimpacientes sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkdimpacientes"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_PAC_REGISTRO')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOLD_DIM_PACIENTES')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOLD_DIM_PACIENTES')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/dim_pacientes",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOLD_DIM_MEDICOS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/dim_medicos",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_DIM_MEDICOS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_MED_PLANTA",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilvermedplanta"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_RED_SEDES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverredsedes"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOLD_DIM_MEDICOS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkdimmedicos"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "jnmedicossedes"
+                        },
+                        {
+                            "name": "drvdimmedicos"
+                        },
+                        {
+                            "name": "sltdimmedicos"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          med_id as integer,",
+                        "          esp_principal as string,",
+                        "          esp_secundaria as string,",
+                        "          id_sede as integer,",
+                        "          fec_ingreso as date,",
+                        "          tip_contrato as string,",
+                        "          jornada as string,",
+                        "          estado_activo as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilvermedplanta",
+                        "source(output(",
+                        "          id_sede as integer,",
+                        "          nom_sede as string,",
+                        "          tip_sede as string,",
+                        "          id_ciudad as integer,",
+                        "          id_pais as integer,",
+                        "          cap_camas_gen as integer,",
+                        "          cap_camas_uci as integer,",
+                        "          cap_camas_cirugia as integer,",
+                        "          cap_camas_urg as integer,",
+                        "          nivel_complejidad as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverredsedes",
+                        "srcsilvermedplanta, srcsilverredsedes join(srcsilvermedplanta@id_sede == srcsilverredsedes@id_sede,",
+                        "     joinType:'left',",
+                        "     matchType:'exact',",
+                        "     ignoreSpaces: false,",
+                        "     broadcast: 'auto')~> jnmedicossedes",
+                        "jnmedicossedes derive(anos_experiencia = year(toDate('2026-08-17'))- year(fec_ingreso)) ~> drvdimmedicos",
+                        "drvdimmedicos select(mapColumn(",
+                        "          med_id,",
+                        "          esp_principal,",
+                        "          esp_secundaria,",
+                        "          id_sede = srcsilvermedplanta@id_sede,",
+                        "          fec_ingreso,",
+                        "          tip_contrato,",
+                        "          jornada,",
+                        "          estado_activo,",
+                        "          id_sede = srcsilverredsedes@id_sede,",
+                        "          nom_sede,",
+                        "          tip_sede,",
+                        "          id_ciudad,",
+                        "          id_pais,",
+                        "          cap_camas_gen,",
+                        "          cap_camas_uci,",
+                        "          cap_camas_cirugia,",
+                        "          cap_camas_urg,",
+                        "          nivel_complejidad,",
+                        "          anos_experiencia",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltdimmedicos",
+                        "sltdimmedicos sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     mapColumn(",
+                        "          med_id,",
+                        "          esp_principal,",
+                        "          esp_secundaria,",
+                        "          id_sede,",
+                        "          fec_ingreso,",
+                        "          tip_contrato,",
+                        "          jornada,",
+                        "          estado_activo,",
+                        "          nom_sede,",
+                        "          tip_sede,",
+                        "          id_ciudad,",
+                        "          id_pais,",
+                        "          cap_camas_gen,",
+                        "          cap_camas_uci,",
+                        "          cap_camas_cirugia,",
+                        "          cap_camas_urg,",
+                        "          nivel_complejidad,",
+                        "          anos_experiencia",
+                        "     )) ~> sinkdimmedicos"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_MED_PLANTA')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_RED_SEDES')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOLD_DIM_MEDICOS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOL_DIM_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/dim_sedes",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_DIM_SEDES')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_RED_SEDES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverredsedes"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOL_DIM_SEDES",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkdimsedes"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvdimsedes"
+                        },
+                        {
+                            "name": "sltdimsedes"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_sede as integer,",
+                        "          nom_sede as string,",
+                        "          tip_sede as string,",
+                        "          id_ciudad as integer,",
+                        "          id_pais as integer,",
+                        "          cap_camas_gen as integer,",
+                        "          cap_camas_uci as integer,",
+                        "          cap_camas_cirugia as integer,",
+                        "          cap_camas_urg as integer,",
+                        "          nivel_complejidad as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverredsedes",
+                        "srcsilverredsedes derive(capacidad_total_camas = cap_camas_cirugia + cap_camas_gen + cap_camas_uci + cap_camas_urg,",
+                        "          porcentaje_uci = ( cap_camas_uci / (cap_camas_cirugia+cap_camas_gen+cap_camas_uci+cap_camas_urg) * 100)\r",
+                        ") ~> drvdimsedes",
+                        "drvdimsedes select(mapColumn(",
+                        "          id_sede,",
+                        "          nom_sede,",
+                        "          tip_sede,",
+                        "          id_ciudad,",
+                        "          id_pais,",
+                        "          cap_camas_gen,",
+                        "          cap_camas_uci,",
+                        "          cap_camas_cirugia,",
+                        "          cap_camas_urg,",
+                        "          nivel_complejidad,",
+                        "          capacidad_total_camas,",
+                        "          porcentaje_uci",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltdimsedes",
+                        "sltdimsedes sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkdimsedes"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_RED_SEDES')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOL_DIM_SEDES')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_FACT_CONSULTAS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverhceencuentros"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOLD_DIM_MEDICOS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcgolddimmedicos"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOL_FACT_CONSULTAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkfactconsultas"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvfactconsultas"
+                        },
+                        {
+                            "name": "jnconsultasmedicos"
+                        },
+                        {
+                            "name": "sltfactconsultas"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_encuentros as long,",
+                        "          pac_id as integer,",
+                        "          med_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_registro as timestamp,",
+                        "          fec_inicio_atencion as timestamp,",
+                        "          fec_egreso as timestamp,",
+                        "          tip_consulta as string,",
+                        "          esp_atendida as string,",
+                        "          diag_principal_cie10 as string,",
+                        "          diag_sec1_cie10 as string,",
+                        "          cod_procedimiento as string,",
+                        "          vr_facturado as decimal(18,2),",
+                        "          estado_factura as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverhceencuentros",
+                        "source(output(",
+                        "          med_id as integer,",
+                        "          esp_principal as string,",
+                        "          esp_secundaria as string,",
+                        "          id_sede as integer,",
+                        "          fec_ingreso as date,",
+                        "          tip_contrato as string,",
+                        "          jornada as string,",
+                        "          estado_activo as string,",
+                        "          nom_sede as string,",
+                        "          tip_sede as string,",
+                        "          id_ciudad as integer,",
+                        "          id_pais as integer,",
+                        "          cap_camas_gen as integer,",
+                        "          cap_camas_uci as integer,",
+                        "          cap_camas_cirugia as integer,",
+                        "          cap_camas_urg as integer,",
+                        "          nivel_complejidad as string,",
+                        "          anos_experiencia as integer",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcgolddimmedicos",
+                        "srcsilverhceencuentros derive(tiempo_estadia_horas = (toLong(fec_egreso) - toLong(fec_registro)) / 3600000,",
+                        "          diag_principal_cie10_3 = left(upper(trim(diag_principal_cie10)), 3)) ~> drvfactconsultas",
+                        "drvfactconsultas, srcgolddimmedicos join(srcsilverhceencuentros@med_id == srcgolddimmedicos@med_id,",
+                        "     joinType:'left',",
+                        "     matchType:'exact',",
+                        "     ignoreSpaces: false,",
+                        "     broadcast: 'auto')~> jnconsultasmedicos",
+                        "jnconsultasmedicos select(mapColumn(",
+                        "          id_encuentros,",
+                        "          pac_id,",
+                        "          med_id = srcsilverhceencuentros@med_id,",
+                        "          id_sede = srcsilverhceencuentros@id_sede,",
+                        "          fec_registro,",
+                        "          fec_inicio_atencion,",
+                        "          fec_egreso,",
+                        "          tip_consulta,",
+                        "          esp_atendida,",
+                        "          diag_principal_cie10,",
+                        "          diag_sec1_cie10,",
+                        "          cod_procedimiento,",
+                        "          vr_facturado,",
+                        "          estado_factura,",
+                        "          tiempo_estadia_horas,",
+                        "          diag_principal_cie10_3,",
+                        "          med_id = srcgolddimmedicos@med_id,",
+                        "          esp_principal,",
+                        "          esp_secundaria,",
+                        "          id_sede = srcgolddimmedicos@id_sede,",
+                        "          fec_ingreso,",
+                        "          tip_contrato,",
+                        "          jornada,",
+                        "          estado_activo,",
+                        "          nom_sede,",
+                        "          tip_sede,",
+                        "          id_ciudad,",
+                        "          id_pais,",
+                        "          cap_camas_gen,",
+                        "          cap_camas_uci,",
+                        "          cap_camas_cirugia,",
+                        "          cap_camas_urg,",
+                        "          nivel_complejidad,",
+                        "          anos_experiencia",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sltfactconsultas",
+                        "sltfactconsultas sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkfactconsultas"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOLD_DIM_MEDICOS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOL_FACT_CONSULTAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOL_FACT_CONSULTAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/fact_consultas",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOL_FACT_OCUPACION_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/fact_ocupacion_camas",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_FACT_TIEMPOS_ESPERA')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_AGE_CITAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilveragecitas"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOLD_FACT_TIEMPOS_ESPERA",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkfacttiempoespera"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "DS_ERRORS_AGE_CITAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkerroresagecitas"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvfacttiemposespera"
+                        },
+                        {
+                            "name": "splitfacttiemposespera"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_cita as long,",
+                        "          pac_id as integer,",
+                        "          med_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_agendamiento as date,",
+                        "          fec_cita_programada as date,",
+                        "          hra_cita_programada as timestamp,",
+                        "          hra_llegada_paciente as timestamp,",
+                        "          hra_inicio_atencion as timestamp,",
+                        "          esp_solicitada as string,",
+                        "          tip_cita as string,",
+                        "          estado_cita as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilveragecitas",
+                        "srcsilveragecitas derive(tiempo_espera_min = hra_inicio_atencion -hra_llegada_paciente) ~> drvfacttiemposespera",
+                        "drvfacttiemposespera split(upper(trim(estado_cita)) == 'ATENDIDA'\r",
+                        "&&\r",
+                        "!isNull(hra_llegada_paciente)\r",
+                        "&&\r",
+                        "tiempo_espera_min >= 0,",
+                        "     isNull(hra_llegada_paciente)\r",
+                        "||\r",
+                        "tiempo_espera_min < 0,",
+                        "     disjoint: false) ~> splitfacttiemposespera@(Validos, Errores)",
+                        "splitfacttiemposespera@Validos sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkfacttiempoespera",
+                        "splitfacttiemposespera@Errores sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkerroresagecitas"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_AGE_CITAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOLD_FACT_TIEMPOS_ESPERA')]",
+                "[concat(variables('factoryId'), '/datasets/DS_ERRORS_AGE_CITAS')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOLD_FACT_TIEMPOS_ESPERA')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/fact_tiempos_espera",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_ERRORS_AGE_CITAS')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/Errores/AGE_CITAS",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DS_GOLD_FACT_COSTOS_ATENCION')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "LS_ADLS_HealthNet",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "Parquet",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": "Gold/fact_costos_atencion",
+                        "fileSystem": "healthnet"
+                    },
+                    "compressionCodec": "snappy"
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/LS_ADLS_HealthNet')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_FACT_COSTOS_ATENCION')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_FAR_DISPENSACION",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverfardispensacion"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_HCE_ENCUENTROS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilverhceencuentros"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOLD_FACT_COSTOS_ATENCION",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkfactcostosatencion"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvfarcostos"
+                        },
+                        {
+                            "name": "aggfarencuentro"
+                        },
+                        {
+                            "name": "jncostoshce"
+                        },
+                        {
+                            "name": "drvfactcostosatencion"
+                        },
+                        {
+                            "name": "aggfactcostosatencion"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_diapensacion as long,",
+                        "          id_encuentros as long,",
+                        "          pac_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_dispensacion as timestamp,",
+                        "          cod_medicamento as string,",
+                        "          nom_medicamento as string,",
+                        "          cantidad as integer,",
+                        "          vr_unitario as decimal(18,2),",
+                        "          tip_prescripcion as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverfardispensacion",
+                        "source(output(",
+                        "          id_encuentros as long,",
+                        "          pac_id as integer,",
+                        "          med_id as integer,",
+                        "          id_sede as integer,",
+                        "          fec_registro as timestamp,",
+                        "          fec_inicio_atencion as timestamp,",
+                        "          fec_egreso as timestamp,",
+                        "          tip_consulta as string,",
+                        "          esp_atendida as string,",
+                        "          diag_principal_cie10 as string,",
+                        "          diag_sec1_cie10 as string,",
+                        "          cod_procedimiento as string,",
+                        "          vr_facturado as decimal(18,2),",
+                        "          estado_factura as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilverhceencuentros",
+                        "srcsilverfardispensacion derive(costo_medicamentos = vr_unitario * cantidad) ~> drvfarcostos",
+                        "drvfarcostos aggregate(groupBy(id_encuentros),",
+                        "     costo_medicamentos_total = sum(costo_medicamentos)) ~> aggfarencuentro",
+                        "aggfarencuentro, srcsilverhceencuentros join(aggfarencuentro@id_encuentros == srcsilverhceencuentros@id_encuentros,",
+                        "     joinType:'left',",
+                        "     matchType:'exact',",
+                        "     ignoreSpaces: false,",
+                        "     broadcast: 'auto')~> jncostoshce",
+                        "jncostoshce derive(costo_total = vr_facturado + costo_medicamentos_total) ~> drvfactcostosatencion",
+                        "drvfactcostosatencion aggregate(groupBy(tip_consulta,",
+                        "          diag_principal_cie10),",
+                        "     costo_total = sum(costo_total),",
+                        "          numero_encuentros = count(srcsilverhceencuentros@id_encuentros)) ~> aggfactcostosatencion",
+                        "aggfactcostosatencion sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkfactcostosatencion"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_FAR_DISPENSACION')]",
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_HCE_ENCUENTROS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOLD_FACT_COSTOS_ATENCION')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/DF_SILVER_TO_GOLD_FACT_OCUPACION_CAMAS')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_SILVER_GCM_CAMAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "srcsilvergcmcamas"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "DS_GOL_FACT_OCUPACION_CAMAS",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkfactocupacioncamas"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "drvfactocupacioncamas"
+                        },
+                        {
+                            "name": "drvestadoocupacion"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          id_registro_cama as long,",
+                        "          id_sede as integer,",
+                        "          fec_hora_registro as timestamp,",
+                        "          num_camas_ocupadas as integer,",
+                        "          num_camas_disp as integer,",
+                        "          tip_unidad as string",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false,",
+                        "     format: 'parquet') ~> srcsilvergcmcamas",
+                        "srcsilvergcmcamas derive(tasa_ocupacion = num_camas_ocupadas /\r",
+                        "(num_camas_ocupadas + num_camas_disp)) ~> drvfactocupacioncamas",
+                        "drvfactocupacioncamas derive(estado_ocupacion = iif(\r",
+                        "    (\r",
+                        "        upper(trim(tip_unidad)) == 'GENERAL'\r",
+                        "        && tasa_ocupacion > 0.88\r",
+                        "    )\r",
+                        "    ||\r",
+                        "    (\r",
+                        "        upper(trim(tip_unidad)) == 'CIRUGIA'\r",
+                        "        && tasa_ocupacion > 0.88\r",
+                        "    )\r",
+                        "    ||\r",
+                        "    (\r",
+                        "        upper(trim(tip_unidad)) == 'UCI'\r",
+                        "        && tasa_ocupacion > 0.85\r",
+                        "    )\r",
+                        "    ||\r",
+                        "    (\r",
+                        "        upper(trim(tip_unidad)) == 'URGENCIAS'\r",
+                        "        && tasa_ocupacion > 0.90\r",
+                        "    ),\r",
+                        "    'Critico',\r",
+                        "    iif(\r",
+                        "        tasa_ocupacion >= 0.80,\r",
+                        "        'Precaucion',\r",
+                        "        'Normal'\r",
+                        "    )\r",
+                        ")\r",
+                        ") ~> drvestadoocupacion",
+                        "drvestadoocupacion sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     format: 'parquet',",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> sinkfactocupacioncamas"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/DS_SILVER_GCM_CAMAS')]",
+                "[concat(variables('factoryId'), '/datasets/DS_GOL_FACT_OCUPACION_CAMAS')]"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,67 @@
+{
+    "name": "DF_BRONZE_TO_SILVER_GCM_CAMAS",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_BRONZE_GCM_CAMAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcgcmcamas"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_GCM_CAMAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sink1"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvgcmcamas"
+                },
+                {
+                    "name": "select1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_registro_cama as long,",
+                "          id_sede as integer,",
+                "          tip_unidad as string,",
+                "          fec_hora_registro as timestamp,",
+                "          num_camas_ocupadas as integer,",
+                "          num_camas_disp as integer",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcgcmcamas",
+                "srcgcmcamas derive(tip_unidad_limpio = upper(trim(tip_unidad))) ~> drvgcmcamas",
+                "drvgcmcamas select(mapColumn(",
+                "          id_registro_cama,",
+                "          id_sede,",
+                "          fec_hora_registro,",
+                "          num_camas_ocupadas,",
+                "          num_camas_disp,",
+                "          tip_unidad = tip_unidad_limpio",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select1",
+                "select1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sink1"
+            ]
+        }
+    }
+}

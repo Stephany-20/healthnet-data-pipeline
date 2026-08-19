@@ -1,0 +1,86 @@
+{
+    "name": "DF_SILVER_TO_GOLD_FACT_OCUPACION_CAMAS",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_GCM_CAMAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilvergcmcamas"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOL_FACT_OCUPACION_CAMAS",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkfactocupacioncamas"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvfactocupacioncamas"
+                },
+                {
+                    "name": "drvestadoocupacion"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_registro_cama as long,",
+                "          id_sede as integer,",
+                "          fec_hora_registro as timestamp,",
+                "          num_camas_ocupadas as integer,",
+                "          num_camas_disp as integer,",
+                "          tip_unidad as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilvergcmcamas",
+                "srcsilvergcmcamas derive(tasa_ocupacion = num_camas_ocupadas /\r",
+                "(num_camas_ocupadas + num_camas_disp)) ~> drvfactocupacioncamas",
+                "drvfactocupacioncamas derive(estado_ocupacion = iif(\r",
+                "    (\r",
+                "        upper(trim(tip_unidad)) == 'GENERAL'\r",
+                "        && tasa_ocupacion > 0.88\r",
+                "    )\r",
+                "    ||\r",
+                "    (\r",
+                "        upper(trim(tip_unidad)) == 'CIRUGIA'\r",
+                "        && tasa_ocupacion > 0.88\r",
+                "    )\r",
+                "    ||\r",
+                "    (\r",
+                "        upper(trim(tip_unidad)) == 'UCI'\r",
+                "        && tasa_ocupacion > 0.85\r",
+                "    )\r",
+                "    ||\r",
+                "    (\r",
+                "        upper(trim(tip_unidad)) == 'URGENCIAS'\r",
+                "        && tasa_ocupacion > 0.90\r",
+                "    ),\r",
+                "    'Critico',\r",
+                "    iif(\r",
+                "        tasa_ocupacion >= 0.80,\r",
+                "        'Precaucion',\r",
+                "        'Normal'\r",
+                "    )\r",
+                ")\r",
+                ") ~> drvestadoocupacion",
+                "drvestadoocupacion sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkfactocupacioncamas"
+            ]
+        }
+    }
+}

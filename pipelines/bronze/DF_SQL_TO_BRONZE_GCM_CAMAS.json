@@ -1,0 +1,41 @@
+{
+    "name": "DS_SQL_GCM_CAMAS",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "id_registro_cama",
+                "type": "bigint",
+                "precision": 19
+            },
+            {
+                "name": "id_sede",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "tip_unidad",
+                "type": "varchar"
+            },
+            {
+                "name": "fec_hora_registro",
+                "type": "datetime2",
+                "scale": 7
+            },
+            {
+                "name": "num_camas_ocupadas",
+                "type": "int",
+                "precision": 10
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "GCM_CAMAS"
+        }
+    }
+}

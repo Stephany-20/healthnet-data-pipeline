@@ -1,0 +1,38 @@
+project:
+  name: healthnet
+  scenario: C
+  sector: salud_y_servicios_medicos
+  seed: 20260814
+
+date_range:
+  start: "2025-01-01"
+  end: "2026-01-01"
+
+volumes:
+  PAC_REGISTRO: 100000
+  MED_PLANTA: 2000
+  RED_SEDES: 82
+  HCE_ENCUENTROS: 2000000
+  GCM_CAMAS: 500000
+  FAR_DISPENSACION: 2000000
+  AGE_CITAS: 1500000
+
+aseguradoras:
+  total: 42
+  eps: 20
+  aseguradoras: 22
+
+data_quality:
+  null_percentage: 0.05
+  generate_anomalies: true
+  anomalies:
+    duplicates: 100
+    dates_out_of_range: 100
+    inconsistent_dates: 100
+
+output:
+  formats:
+    -CSV
+    -parquet
+
+  directory: "./output"

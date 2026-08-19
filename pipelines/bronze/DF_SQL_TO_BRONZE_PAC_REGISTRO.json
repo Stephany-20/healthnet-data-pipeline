@@ -1,0 +1,65 @@
+{
+    "name": "DS_SQL_PAC_REGISTRO",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "pac_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "tip_doc",
+                "type": "varchar"
+            },
+            {
+                "name": "num_doc_hash",
+                "type": "varchar"
+            },
+            {
+                "name": "fec_nac",
+                "type": "date"
+            },
+            {
+                "name": "genero",
+                "type": "varchar"
+            },
+            {
+                "name": "id_ciudad_res",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "tip_aseguradora",
+                "type": "varchar"
+            },
+            {
+                "name": "id_eps",
+                "type": "float",
+                "precision": 15
+            },
+            {
+                "name": "estrato_socioec",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "fec_primer_atencion",
+                "type": "date"
+            },
+            {
+                "name": "activo",
+                "type": "bit"
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "PAC_REGISTRO"
+        }
+    }
+}

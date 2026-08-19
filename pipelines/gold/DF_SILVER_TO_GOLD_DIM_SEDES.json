@@ -1,0 +1,79 @@
+{
+    "name": "DF_SILVER_TO_GOLD_DIM_SEDES",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_RED_SEDES",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilverredsedes"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOL_DIM_SEDES",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkdimsedes"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvdimsedes"
+                },
+                {
+                    "name": "sltdimsedes"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_sede as integer,",
+                "          nom_sede as string,",
+                "          tip_sede as string,",
+                "          id_ciudad as integer,",
+                "          id_pais as integer,",
+                "          cap_camas_gen as integer,",
+                "          cap_camas_uci as integer,",
+                "          cap_camas_cirugia as integer,",
+                "          cap_camas_urg as integer,",
+                "          nivel_complejidad as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilverredsedes",
+                "srcsilverredsedes derive(capacidad_total_camas = cap_camas_cirugia + cap_camas_gen + cap_camas_uci + cap_camas_urg,",
+                "          porcentaje_uci = ( cap_camas_uci / (cap_camas_cirugia+cap_camas_gen+cap_camas_uci+cap_camas_urg) * 100)\r",
+                ") ~> drvdimsedes",
+                "drvdimsedes select(mapColumn(",
+                "          id_sede,",
+                "          nom_sede,",
+                "          tip_sede,",
+                "          id_ciudad,",
+                "          id_pais,",
+                "          cap_camas_gen,",
+                "          cap_camas_uci,",
+                "          cap_camas_cirugia,",
+                "          cap_camas_urg,",
+                "          nivel_complejidad,",
+                "          capacidad_total_camas,",
+                "          porcentaje_uci",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sltdimsedes",
+                "sltdimsedes sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkdimsedes"
+            ]
+        }
+    }
+}

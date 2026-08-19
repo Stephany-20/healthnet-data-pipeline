@@ -1,0 +1,82 @@
+{
+    "name": "DS_SQL_HCE_ENCUENTROS",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "LS_AzureSQL_HealthNet",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [
+            {
+                "name": "id_encuentros",
+                "type": "bigint",
+                "precision": 19
+            },
+            {
+                "name": "pac_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "med_id",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "id_sede",
+                "type": "int",
+                "precision": 10
+            },
+            {
+                "name": "fec_registro",
+                "type": "datetime2",
+                "scale": 7
+            },
+            {
+                "name": "fec_inicio_atencion",
+                "type": "datetime2",
+                "scale": 7
+            },
+            {
+                "name": "fec_egreso",
+                "type": "datetime2",
+                "scale": 7
+            },
+            {
+                "name": "tip_consulta",
+                "type": "varchar"
+            },
+            {
+                "name": "esp_atendida",
+                "type": "varchar"
+            },
+            {
+                "name": "diag_principal_cie10",
+                "type": "varchar"
+            },
+            {
+                "name": "diag_sec1_cie10",
+                "type": "varchar"
+            },
+            {
+                "name": "cod_procedimiento",
+                "type": "varchar"
+            },
+            {
+                "name": "vr_facturado",
+                "type": "decimal",
+                "precision": 18,
+                "scale": 2
+            },
+            {
+                "name": "estado_factura",
+                "type": "varchar"
+            }
+        ],
+        "typeProperties": {
+            "schema": "dbo",
+            "table": "HCE_ENCUENTROS"
+        }
+    }
+}

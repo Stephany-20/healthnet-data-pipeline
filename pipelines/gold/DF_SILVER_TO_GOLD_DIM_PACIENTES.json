@@ -1,0 +1,59 @@
+{
+    "name": "DF_SILVER_TO_GOLD_DIM_PACIENTES",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_SILVER_PAC_REGISTRO",
+                        "type": "DatasetReference"
+                    },
+                    "name": "srcsilverpacregistro"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_GOLD_DIM_PACIENTES",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkdimpacientes"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "drvdimpacientes"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          pac_id as integer,",
+                "          tip_doc as string,",
+                "          num_doc_hash as string,",
+                "          fec_nac as date,",
+                "          genero as string,",
+                "          id_ciudad_res as integer,",
+                "          tip_aseguradora as string,",
+                "          id_eps as double,",
+                "          estrato_socioec as integer,",
+                "          fec_primer_atencion as date,",
+                "          activo as boolean",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> srcsilverpacregistro",
+                "srcsilverpacregistro derive(grupo_edad = year(toDate('2026-08-17'))- year(fec_nac)) ~> drvdimpacientes",
+                "drvdimpacientes sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> sinkdimpacientes"
+            ]
+        }
+    }
+}
