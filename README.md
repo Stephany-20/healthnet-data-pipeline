@@ -83,7 +83,7 @@ Las principales fuentes utilizadas son:
 Los archivos se almacenan en formato Parquet dentro de Azure Data Lake Storage Gen2.
 
 La estructura utilizada sigue el siguiente patrón:
-
+```text
 bronze/
 ├── PAC_REGISTRO/
 ├── HCE_ENCUENTROS/
@@ -92,6 +92,7 @@ bronze/
 ├── GCM_CAMAS/
 ├── AGE_CITAS/
 └── FAR_DISPENSACION/
+```
 
 ### Silver
 
@@ -303,6 +304,41 @@ Entre ellas:
 - fechas inconsistentes entre diferentes campos.
 
 Estas anomalías serán utilizadas posteriormente para demostrar que el pipeline puede detectarlas y manejarlas.
+
+## Linaje de datos
+
+Para algunos de los campos calculados en la capa Gold se documentó de dónde vienen los datos, qué transformación se realiza y para qué se utiliza el resultado. Esto permite entender el recorrido de la información desde Silver hasta Gold.
+
+### grupo_edad
+
+El campo `grupo_edad` de la tabla `dim_pacientes` se obtiene a partir del campo `fec_nac` de `silver.PAC_REGISTRO`. Primero se calcula la edad del paciente y luego se clasifica en los rangos definidos para la prueba: 0-12, 13-17, 18-40, 41-65 y +65.
+
+El propósito de este campo es facilitar la segmentación de los pacientes por grupo de edad y permitir análisis demográficos en la capa Gold.
+
+### anos_experiencia
+
+El campo `anos_experiencia` de la tabla `dim_medicos` se obtiene a partir del campo `fec_ingreso` de `silver.MED_PLANTA`. Se calcula la diferencia entre la fecha de referencia y la fecha de ingreso del médico para obtener los años de experiencia.
+
+El propósito de este campo es facilitar el análisis de la experiencia de los médicos y permitir utilizar esta información en consultas y análisis de la operación de la red de salud.
+
+### capacidad_total_camas
+
+El campo `capacidad_total_camas` de la tabla `dim_sedes` se obtiene a partir de los diferentes tipos de capacidad de camas disponibles en `silver.RED_SEDES`. Para obtener este valor se realiza la suma de los cuatro tipos de camas registrados para cada sede.
+
+El propósito de este campo es tener una medida consolidada de la capacidad de cada sede y facilitar el análisis de la disponibilidad y capacidad hospitalaria.
+
+
+### tasa_ocupacion
+
+El campo `tasa_ocupacion` de `fact_ocupacion_camas` se calcula utilizando los campos `num_camas_ocupadas` y `num_camas_disp` provenientes de `silver.GCM_CAMAS`. La fórmula utilizada es la cantidad de camas ocupadas dividida entre la suma de camas ocupadas y camas disponibles.
+
+El propósito de este campo es medir el nivel de ocupación de las camas y permitir posteriormente clasificar el estado de ocupación de cada sede y tipo de unidad.
+
+### tiempo_espera_min
+
+El campo `tiempo_espera_min` de `fact_tiempos_espera` se obtiene a partir de `hra_llegada_paciente` y `hra_inicio_atencion` de `silver.AGE_CITAS`. Se calcula la diferencia entre la hora de inicio de atención y la hora de llegada del paciente, expresada en minutos.
+
+El propósito de este campo es medir el tiempo que espera un paciente antes de ser atendido. Solo se consideran las citas atendidas y los registros con tiempos negativos se envían a la tabla de errores.
 
 ---
 
